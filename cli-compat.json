@@ -1,0 +1,139 @@
+{
+    "testedVersion": "2.1.59",
+    "minVersion": "2.0.0",
+    "lastChecked": "2026-03-06",
+    "usedFlags": {
+        "-p, --print": {
+            "usedBy": [
+                "claude-prompt",
+                "claude-review",
+                "claude-init",
+                "claude-teams"
+            ],
+            "purpose": "Non-interactive one-shot prompting"
+        },
+        "--output-format": {
+            "usedBy": [
+                "claude-prompt",
+                "claude-init"
+            ],
+            "purpose": "Control output format (text/json/stream-json)"
+        },
+        "-c, --continue": {
+            "usedBy": [
+                "claude-session"
+            ],
+            "purpose": "Continue most recent conversation"
+        },
+        "-r, --resume": {
+            "usedBy": [
+                "claude-session"
+            ],
+            "purpose": "Resume conversation by session ID"
+        },
+        "--dangerously-skip-permissions": {
+            "usedBy": [
+                "claude-teams"
+            ],
+            "purpose": "Bypass permission checks for sandboxed agents"
+        },
+        "-v, --version": {
+            "usedBy": [
+                "cli-version"
+            ],
+            "purpose": "Detect installed CLI version"
+        }
+    },
+    "usedCommands": {
+        "mcp add": {
+            "usedBy": [
+                "claude-mcp"
+            ],
+            "purpose": "Add an MCP server"
+        },
+        "mcp remove": {
+            "usedBy": [
+                "claude-mcp"
+            ],
+            "purpose": "Remove an MCP server"
+        },
+        "mcp list": {
+            "usedBy": [
+                "claude-mcp"
+            ],
+            "purpose": "List configured MCP servers"
+        },
+        "sessions list": {
+            "usedBy": [
+                "claude-session"
+            ],
+            "purpose": "List all saved sessions"
+        }
+    },
+    "usedEnvVars": {
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": {
+            "usedBy": [
+                "claude-teams"
+            ],
+            "purpose": "Enable experimental agent teams feature"
+        }
+    },
+    "knownFlags": [
+        "--add-dir",
+        "--agent",
+        "--agents",
+        "--allow-dangerously-skip-permissions",
+        "--allowedTools, --allowed-tools",
+        "--append-system-prompt",
+        "--betas",
+        "--chrome",
+        "-c, --continue",
+        "--dangerously-skip-permissions",
+        "-d, --debug",
+        "--debug-file",
+        "--disable-slash-commands",
+        "--disallowedTools, --disallowed-tools",
+        "--effort",
+        "--fallback-model",
+        "--file",
+        "--fork-session",
+        "--from-pr",
+        "-h, --help",
+        "--ide",
+        "--include-partial-messages",
+        "--input-format",
+        "--json-schema",
+        "--max-budget-usd",
+        "--mcp-config",
+        "--mcp-debug",
+        "--model",
+        "--no-chrome",
+        "--no-session-persistence",
+        "--output-format",
+        "--permission-mode",
+        "--plugin-dir",
+        "-p, --print",
+        "--replay-user-messages",
+        "-r, --resume",
+        "--session-id",
+        "--setting-sources",
+        "--settings",
+        "--strict-mcp-config",
+        "--system-prompt",
+        "--tmux",
+        "--tools",
+        "--verbose",
+        "-v, --version",
+        "-w, --worktree"
+    ],
+    "knownCommands": [
+        "agents",
+        "auth",
+        "doctor",
+        "install",
+        "mcp",
+        "plugin",
+        "setup-token",
+        "update"
+    ]
+}
