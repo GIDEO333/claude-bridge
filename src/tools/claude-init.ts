@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { join } from "path";
 import { processManager } from "../process-manager.js";
+import { sanitizeOutput } from "../output-guard.js";
+import { config, resolveSafeCwd } from "../config.js";
 
 export const claudeInitSchema = z.object({
     cwd: z.string(),
@@ -8,8 +10,9 @@ export const claudeInitSchema = z.object({
 });
 
 export async function executeClaudeInit(args: z.infer<typeof claudeInitSchema>) {
-    const claudePath = process.env.CLAUDE_CLI_PATH || "claude";
-    const timeoutMs = parseInt(process.env.DEFAULT_TIMEOUT || "300000", 10);
+    const claudePath = config.claudePath;
+    const timeoutMs = config.defaultTimeout;
+    const safeCwd = resolveSafeCwd(args.cwd);
 
     const initPrompt = args.projectName
         ? `/init\nProject name: ${args.projectName}`
@@ -17,12 +20,12 @@ export async function executeClaudeInit(args: z.infer<typeof claudeInitSchema>) 
 
     const cmdArgs = ["-p", initPrompt, "--output-format", "text"];
 
-    const childId = processManager.spawn(claudePath, cmdArgs, args.cwd, {}, timeoutMs);
+    const childId = processManager.spawn(claudePath, cmdArgs, safeCwd, {}, timeoutMs);
 
     const exitCode = await processManager.waitForExit(childId);
 
     const outputLines = processManager.getOutput(childId);
-    const outputStr = outputLines.join("\n").trim();
+    const outputStr = sanitizeOutput(outputLines.join("\n").trim());
 
     if (exitCode !== 0) {
         return {

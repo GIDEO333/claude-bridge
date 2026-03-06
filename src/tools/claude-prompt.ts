@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { processManager } from "../process-manager.js";
+import { sanitizeOutput } from "../output-guard.js";
+import { config, resolveSafeCwd } from "../config.js";
 
 export const claudePromptSchema = z.object({
     prompt: z.string(),
@@ -8,18 +10,19 @@ export const claudePromptSchema = z.object({
 });
 
 export async function executeClaudePrompt(args: z.infer<typeof claudePromptSchema>) {
-    const cwd = args.cwd || process.cwd();
+    const cwd = resolveSafeCwd(args.cwd);
     const format = args.outputFormat || "text";
-    const claudePath = process.env.CLAUDE_CLI_PATH || "claude";
+    const claudePath = config.claudePath;
+    const timeoutMs = config.defaultTimeout;
 
     const cmdArgs = ["-p", args.prompt, "--output-format", format];
 
-    const childId = processManager.spawn(claudePath, cmdArgs, cwd, {}, 300000);
+    const childId = processManager.spawn(claudePath, cmdArgs, cwd, {}, timeoutMs);
 
     const exitCode = await processManager.waitForExit(childId);
 
     const outputLines = processManager.getOutput(childId);
-    const outputStr = outputLines.join("\n").trim();
+    const outputStr = sanitizeOutput(outputLines.join("\n").trim());
 
     if (exitCode !== 0) {
         return {

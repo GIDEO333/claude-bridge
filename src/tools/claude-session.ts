@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { processManager } from "../process-manager.js";
+import { sanitizeOutput } from "../output-guard.js";
+import { config } from "../config.js";
 
 export const claudeSessionSchema = z.object({
     action: z.enum(["continue", "resume", "list"]),
@@ -7,8 +9,8 @@ export const claudeSessionSchema = z.object({
 });
 
 export async function executeClaudeSession(args: z.infer<typeof claudeSessionSchema>) {
-    const claudePath = process.env.CLAUDE_CLI_PATH || "claude";
-    const timeoutMs = parseInt(process.env.DEFAULT_TIMEOUT || "300000", 10);
+    const claudePath = config.claudePath;
+    const timeoutMs = config.defaultTimeout;
 
     switch (args.action) {
         case "continue": {
@@ -51,7 +53,7 @@ export async function executeClaudeSession(args: z.infer<typeof claudeSessionSch
             const exitCode = await processManager.waitForExit(childId);
 
             const outputLines = processManager.getOutput(childId);
-            const outputStr = outputLines.join("\n").trim();
+            const outputStr = sanitizeOutput(outputLines.join("\n").trim());
 
             if (exitCode !== 0) {
                 return {

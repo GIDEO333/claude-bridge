@@ -180,11 +180,12 @@ describe("Zod Schema Validation", () => {
             expect(result.action).toBe("list");
         });
 
-        it("accepts add with serverName and config", () => {
+        it("accepts add with serverName and configCommand", () => {
             const result = claudeMcpSchema.parse({
                 action: "add",
                 serverName: "test-server",
-                config: { command: "node", args: ["server.js"] },
+                configCommand: "node",
+                configArgs: "server.js",
             });
             expect(result.serverName).toBe("test-server");
         });
@@ -229,17 +230,17 @@ describe("Zod Schema Validation", () => {
     // ── claude-teams ─────────────────────────────────────────────────────
 
     describe("claudeTeamsSchema", () => {
-        it("accepts valid multi-agent config", () => {
+        it("accepts valid multi-agent config as JSON string", () => {
             const result = claudeTeamsSchema.parse({
                 mode: 1,
-                agents: [
+                agents: JSON.stringify([
                     {
                         role: "frontend",
                         owns: ["src/ui"],
                         forbidden: ["src/api"],
                         spawnPrompt: "Build the UI",
                     },
-                ],
+                ]),
                 claudeMdPath: "/project/CLAUDE.md",
                 mailboxPath: "/project/.agent-teams/mailbox/",
             });
@@ -251,7 +252,7 @@ describe("Zod Schema Validation", () => {
             expect(() =>
                 claudeTeamsSchema.parse({
                     mode: 1,
-                    agents: [],
+                    agents: "[]",
                     claudeMdPath: "/CLAUDE.md",
                     mailboxPath: "/mailbox/",
                 })
@@ -262,14 +263,14 @@ describe("Zod Schema Validation", () => {
             expect(() =>
                 claudeTeamsSchema.parse({
                     mode: 3,
-                    agents: [
+                    agents: JSON.stringify([
                         {
                             role: "test",
                             owns: [],
                             forbidden: [],
                             spawnPrompt: "test",
                         },
-                    ],
+                    ]),
                     claudeMdPath: "/CLAUDE.md",
                     mailboxPath: "/mailbox/",
                 })
@@ -369,15 +370,17 @@ describe("Tool Execution (mocked)", () => {
 
     describe("executeClaudeInit", () => {
         it("returns claudeMdPath on success", async () => {
-            const result = await executeClaudeInit({ cwd: "/tmp/project" });
+            const testCwd = process.env.HOME || "/Users/testuser";
+            const result = await executeClaudeInit({ cwd: `${testCwd}/project` });
 
             expect(result.success).toBe(true);
-            expect(result.claudeMdPath).toBe("/tmp/project/CLAUDE.md");
+            expect(result.claudeMdPath).toBe(`${testCwd}/project/CLAUDE.md`);
         });
 
         it("includes projectName in prompt when provided", async () => {
+            const testCwd = process.env.HOME || "/Users/testuser";
             await executeClaudeInit({
-                cwd: "/tmp",
+                cwd: testCwd,
                 projectName: "my-app",
             });
 
@@ -388,8 +391,9 @@ describe("Tool Execution (mocked)", () => {
 
         it("returns failure on non-zero exit", async () => {
             mockPM.waitForExit.mockResolvedValue(1);
+            const testCwd = process.env.HOME || "/Users/testuser";
 
-            const result = await executeClaudeInit({ cwd: "/tmp" });
+            const result = await executeClaudeInit({ cwd: testCwd });
 
             expect(result.success).toBe(false);
             expect(result.error).toContain("exited with code 1");
@@ -453,11 +457,12 @@ describe("Tool Execution (mocked)", () => {
             expect(result.error).toContain("serverName");
         });
 
-        it("add builds correct args with config", async () => {
+        it("add builds correct args with configCommand", async () => {
             await executeClaudeMcp({
                 action: "add",
                 serverName: "my-server",
-                config: { command: "node", args: ["server.js"] },
+                configCommand: "node",
+                configArgs: "server.js",
             });
 
             const spawnArgs = mockPM.spawn.mock.calls[0][1];
@@ -572,7 +577,7 @@ describe("Tool Execution (mocked)", () => {
                         forbidden: ["src/ui"],
                         spawnPrompt: "Build API",
                     },
-                ],
+                ] as any,
                 claudeMdPath: "/project/CLAUDE.md",
                 mailboxPath: "/tmp/test-mailbox",
                 timeoutMs: 60000,
@@ -596,7 +601,7 @@ describe("Tool Execution (mocked)", () => {
                         forbidden: [],
                         spawnPrompt: "Review code",
                     },
-                ],
+                ] as any,
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mailbox",
                 timeoutMs: 60000,
@@ -616,7 +621,7 @@ describe("Tool Execution (mocked)", () => {
                         forbidden: [],
                         spawnPrompt: "test",
                     },
-                ],
+                ] as any,
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mailbox",
                 timeoutMs: 60000,
@@ -639,7 +644,7 @@ describe("Tool Execution (mocked)", () => {
                         forbidden: [],
                         spawnPrompt: "review",
                     },
-                ],
+                ] as any,
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mailbox",
                 timeoutMs: 60000,
@@ -658,7 +663,7 @@ describe("Tool Execution (mocked)", () => {
                         forbidden: ["src/api"],
                         spawnPrompt: "Build the UI",
                     },
-                ],
+                ] as any,
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mailbox",
                 timeoutMs: 60000,
@@ -686,7 +691,7 @@ describe("Tool Execution (mocked)", () => {
                         forbidden: [],
                         spawnPrompt: "test",
                     },
-                ],
+                ] as any,
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/test-mailbox-dir",
                 timeoutMs: 60000,
@@ -717,7 +722,7 @@ describe("Tool Execution (mocked)", () => {
                         forbidden: [],
                         spawnPrompt: "task-b",
                     },
-                ],
+                ] as any,
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mb",
                 timeoutMs: 60000,

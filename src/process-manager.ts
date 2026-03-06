@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from "child_process";
 import { randomUUID } from "crypto";
 import { ManagedProcess, ProcessStatus } from "./types.js";
+import { config } from "./config.js";
 
 class ProcessManager {
     private processes = new Map<string, ManagedProcess>();
@@ -32,8 +33,8 @@ class ProcessManager {
                 lines.pop();
             }
             managedProcess.outputBuffer.push(...lines);
-            if (managedProcess.outputBuffer.length > 1000) {
-                managedProcess.outputBuffer = managedProcess.outputBuffer.slice(-1000);
+            if (managedProcess.outputBuffer.length > config.maxOutputBuffer) {
+                managedProcess.outputBuffer = managedProcess.outputBuffer.slice(-config.maxOutputBuffer);
             }
         };
 
@@ -47,6 +48,8 @@ class ProcessManager {
             if (managedProcess.timeoutHandle) {
                 clearTimeout(managedProcess.timeoutHandle);
             }
+            // Auto-evict completed processes after TTL to prevent memory leak
+            setTimeout(() => this.processes.delete(id), config.processEvictionTtl);
         });
 
         child.on("error", (error) => {

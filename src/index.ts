@@ -51,20 +51,10 @@ const tools = [
         inputSchema: {
             type: "object" as const,
             properties: {
-                mode: { type: "number", enum: [1, 2], description: "1 = Scatter-Gather, 2 = Reflection" },
+                mode: { type: "string", enum: ["1", "2"], description: "1 = Scatter-Gather, 2 = Reflection" },
                 agents: {
-                    type: "array",
-                    items: {
-                        type: "object",
-                        properties: {
-                            role: { type: "string", description: "Agent role name (e.g. 'frontend', 'backend')" },
-                            owns: { type: "array", items: { type: "string" }, description: "Paths this agent owns" },
-                            forbidden: { type: "array", items: { type: "string" }, description: "Paths this agent must NOT write to" },
-                            spawnPrompt: { type: "string", description: "Task prompt for this agent" },
-                        },
-                        required: ["role", "owns", "forbidden", "spawnPrompt"],
-                    },
-                    description: "List of agents to spawn",
+                    type: "string",
+                    description: "JSON array of agent objects. Each object must have: role (string), owns (string[]), forbidden (string[]), spawnPrompt (string). Example: [{\"role\":\"frontend\",\"owns\":[\"src/components/\"],\"forbidden\":[\"src/api/\"],\"spawnPrompt\":\"Build UI\"}]",
                 },
                 claudeMdPath: { type: "string", description: "Path to CLAUDE.md file" },
                 mailboxPath: { type: "string", description: "Path to .agent-teams/mailbox/ directory" },
@@ -150,14 +140,8 @@ const tools = [
             properties: {
                 action: { type: "string", enum: ["add", "remove", "list"], description: "Action to perform" },
                 serverName: { type: "string", description: "Name of the MCP server (required for add/remove)" },
-                config: {
-                    type: "object",
-                    properties: {
-                        command: { type: "string", description: "Command to start the MCP server" },
-                        args: { type: "array", items: { type: "string" }, description: "Arguments for the command" }
-                    },
-                    description: "Configuration for 'add' action"
-                }
+                configCommand: { type: "string", description: "Command to start the MCP server (required for 'add' action)" },
+                configArgs: { type: "string", description: "Comma-separated arguments for the command (optional, for 'add' action)" },
             },
             required: ["action"],
         },
@@ -262,7 +246,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 throw new Error(`Tool not found: ${name}`);
         }
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        let message = error instanceof Error ? error.message : String(error);
+        // Truncate error messages to prevent Gemini MCP overflow
+        if (message.length > 1000) {
+            message = message.substring(0, 1000) + "...[error truncated]";
+        }
         return {
             content: [{ type: "text" as const, text: `Error: ${message}` }],
             isError: true,
@@ -272,8 +260,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 function formatResult(result: { success: boolean; output: string; error?: string }) {
     if (!result.success) {
+        const errText = result.error ? result.error.substring(0, 500) : "Unknown error";
+        const outText = result.output.substring(0, 2000);
         return {
-            content: [{ type: "text" as const, text: `Error: ${result.error}\nOutput:\n${result.output}` }],
+            content: [{ type: "text" as const, text: `Error: ${errText}\nOutput:\n${outText}` }],
             isError: true,
         };
     }

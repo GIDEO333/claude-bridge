@@ -1,13 +1,12 @@
 import { z } from "zod";
 import { processManager } from "../process-manager.js";
+import { sanitizeOutput } from "../output-guard.js";
 
 export const claudeMcpSchema = z.object({
     action: z.enum(["add", "remove", "list"]),
     serverName: z.string().optional(),
-    config: z.object({
-        command: z.string(),
-        args: z.array(z.string()).optional(),
-    }).optional(),
+    configCommand: z.string().optional(),
+    configArgs: z.string().optional(),
 });
 
 export async function executeClaudeMcp(args: z.infer<typeof claudeMcpSchema>) {
@@ -17,16 +16,17 @@ export async function executeClaudeMcp(args: z.infer<typeof claudeMcpSchema>) {
 
     switch (args.action) {
         case "add": {
-            if (!args.serverName || !args.config || !args.config.command) {
+            if (!args.serverName || !args.configCommand) {
                 return {
                     success: false,
                     output: "",
-                    error: "serverName and config.command are required for 'add' action",
+                    error: "serverName and configCommand are required for 'add' action",
                 };
             }
-            cmdArgs.push("add", args.serverName, "--", args.config.command);
-            if (args.config.args) {
-                cmdArgs.push(...args.config.args);
+            cmdArgs.push("add", args.serverName, "--", args.configCommand);
+            if (args.configArgs) {
+                const parsedArgs = args.configArgs.split(",").map((a) => a.trim()).filter(Boolean);
+                cmdArgs.push(...parsedArgs);
             }
             break;
         }
@@ -51,7 +51,7 @@ export async function executeClaudeMcp(args: z.infer<typeof claudeMcpSchema>) {
     const exitCode = await processManager.waitForExit(childId);
 
     const outputLines = processManager.getOutput(childId);
-    const outputStr = outputLines.join("\n").trim();
+    const outputStr = sanitizeOutput(outputLines.join("\n").trim());
 
     if (exitCode !== 0) {
         return {

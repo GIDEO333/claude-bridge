@@ -11,8 +11,11 @@ const agentConfigSchema = z.object({
 });
 
 export const claudeTeamsSchema = z.object({
-    mode: z.union([z.literal(1), z.literal(2)]),
-    agents: z.array(agentConfigSchema).min(1),
+    mode: z.union([z.literal(1), z.literal(2), z.literal("1"), z.literal("2")]).transform((val) => Number(val) as 1 | 2),
+    agents: z.string().transform((val) => {
+        const parsed = JSON.parse(val);
+        return z.array(agentConfigSchema).min(1).parse(parsed);
+    }),
     claudeMdPath: z.string(),
     mailboxPath: z.string(),
     timeoutMs: z.number().positive().default(600000),

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { processManager } from "../process-manager.js";
+import { sanitizeOutput } from "../output-guard.js";
+import { config } from "../config.js";
 
 export const claudeReviewSchema = z.object({
     targetPath: z.string(),
@@ -7,9 +9,9 @@ export const claudeReviewSchema = z.object({
 });
 
 export async function executeClaudeReview(args: z.infer<typeof claudeReviewSchema>) {
-    const claudePath = process.env.CLAUDE_CLI_PATH || "claude";
+    const claudePath = config.claudePath;
     const reviewType = args.reviewType || "general";
-    const timeoutMs = parseInt(process.env.DEFAULT_TIMEOUT || "300000", 10);
+    const timeoutMs = config.defaultTimeout;
 
     const prompt = [
         `Review the code at "${args.targetPath}".`,
@@ -30,7 +32,7 @@ export async function executeClaudeReview(args: z.infer<typeof claudeReviewSchem
     const exitCode = await processManager.waitForExit(childId);
 
     const outputLines = processManager.getOutput(childId);
-    const outputStr = outputLines.join("\n").trim();
+    const outputStr = sanitizeOutput(outputLines.join("\n").trim());
 
     if (exitCode !== 0) {
         return {
