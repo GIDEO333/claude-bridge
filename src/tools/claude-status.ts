@@ -1,4 +1,17 @@
 import { z } from "zod";
+
+export const toolDefinition = {
+    name: "claude_status",
+    description: "Check the status of a long-running process like clause_agent_teams. Returns ProcessStatus.",
+    inputSchema: {
+        type: "object" as const,
+        properties: {
+            processId: { type: "string", description: "The UUID of the process to check" },
+        },
+        required: ["processId"],
+    },
+};
+
 import { processManager } from "../process-manager.js";
 import { getSignals } from "../file-monitor.js";
 import { ProcessStatus } from "../types.js";

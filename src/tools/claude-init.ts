@@ -1,4 +1,18 @@
 import { z } from "zod";
+
+export const toolDefinition = {
+    name: "claude_init",
+    description: "Initialize a new project with Claude. Runs /init to generate CLAUDE.md.",
+    inputSchema: {
+        type: "object" as const,
+        properties: {
+            cwd: { type: "string", description: "Working directory for the project" },
+            projectName: { type: "string", description: "Optional project name" },
+        },
+        required: ["cwd"],
+    },
+};
+
 import { join } from "path";
 import { processManager } from "../process-manager.js";
 import { sanitizeOutput } from "../output-guard.js";

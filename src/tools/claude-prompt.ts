@@ -1,4 +1,19 @@
 import { z } from "zod";
+
+export const toolDefinition = {
+    name: "claude_prompt",
+    description: "Run a one-shot headless Claude prompt. Waits for completion and returns output.",
+    inputSchema: {
+        type: "object" as const,
+        properties: {
+            prompt: { type: "string", description: "The prompt to send to Claude" },
+            cwd: { type: "string", description: "Working directory for the process" },
+            outputFormat: { type: "string", enum: ["text", "json"], description: "Output format of the CLI" },
+        },
+        required: ["prompt"],
+    },
+};
+
 import { processManager } from "../process-manager.js";
 import { sanitizeOutput } from "../output-guard.js";
 import { config, resolveSafeCwd } from "../config.js";

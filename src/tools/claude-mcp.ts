@@ -1,4 +1,20 @@
 import { z } from "zod";
+
+export const toolDefinition = {
+    name: "claude_mcp_manage",
+    description: "Manage MCP servers configured in Claude Code (wraps `claude mcp`).",
+    inputSchema: {
+        type: "object" as const,
+        properties: {
+            action: { type: "string", enum: ["add", "remove", "list"], description: "Action to perform" },
+            serverName: { type: "string", description: "Name of the MCP server (required for add/remove)" },
+            configCommand: { type: "string", description: "Command to start the MCP server (required for 'add' action)" },
+            configArgs: { type: "string", description: "Comma-separated arguments for the command (optional, for 'add' action)" },
+        },
+        required: ["action"],
+    },
+};
+
 import { processManager } from "../process-manager.js";
 import { sanitizeOutput } from "../output-guard.js";
 

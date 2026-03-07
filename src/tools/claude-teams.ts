@@ -1,4 +1,24 @@
 import { z } from "zod";
+
+export const toolDefinition = {
+    name: "claude_agent_teams",
+    description: "Launch Claude Agent Teams with Mode 1 (Scatter-Gather) or Mode 2 (Reflection). Spawns multiple agents with file ownership constraints and starts mailbox monitoring.",
+    inputSchema: {
+        type: "object" as const,
+        properties: {
+            mode: { type: "string", enum: ["1", "2"], description: "1 = Scatter-Gather, 2 = Reflection" },
+            agents: {
+                type: "string",
+                description: "JSON array of agent objects. Each object must have: role (string), owns (string[]), forbidden (string[]), spawnPrompt (string). Example: [{\"role\":\"frontend\",\"owns\":[\"src/components/\"],\"forbidden\":[\"src/api/\"],\"spawnPrompt\":\"Build UI\"}]",
+            },
+            claudeMdPath: { type: "string", description: "Path to CLAUDE.md file" },
+            mailboxPath: { type: "string", description: "Path to .agent-teams/mailbox/ directory" },
+            timeoutMs: { type: "number", description: "Timeout in milliseconds (default: 600000)" },
+        },
+        required: ["mode", "agents", "claudeMdPath", "mailboxPath"],
+    },
+};
+
 import { mkdir, writeFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";

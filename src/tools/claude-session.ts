@@ -1,4 +1,25 @@
 import { z } from "zod";
+
+export const toolDefinition = {
+    name: "claude_session",
+    description: "Manage Claude sessions: continue the last session, resume a specific session, or list all sessions.",
+    inputSchema: {
+        type: "object" as const,
+        properties: {
+            action: {
+                type: "string",
+                enum: ["continue", "resume", "list"],
+                description: "Action to perform",
+            },
+            sessionId: {
+                type: "string",
+                description: "Session ID (required for 'resume' action)",
+            },
+        },
+        required: ["action"],
+    },
+};
+
 import { processManager } from "../process-manager.js";
 import { sanitizeOutput } from "../output-guard.js";
 import { config } from "../config.js";
