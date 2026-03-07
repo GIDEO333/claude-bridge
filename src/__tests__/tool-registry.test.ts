@@ -8,8 +8,8 @@ describe("Tool Registry Validation", () => {
         expect(names.length).toBe(uniqueNames.size);
     });
 
-    it("2.3 All tools registered: tools.length === 8 and every name present", () => {
-        expect(tools.length).toBe(8);
+    it("2.3 All tools registered: tools.length === 9 and every name present", () => {
+        expect(tools.length).toBe(9);
         const expectedTools = [
             "claude_prompt",
             "claude_agent_teams",
@@ -19,6 +19,7 @@ describe("Tool Registry Validation", () => {
             "claude_status",
             "claude_abort",
             "claude_mcp_manage",
+            "context7_query",
         ];
         
         const actualNames = tools.map((t) => t.name);

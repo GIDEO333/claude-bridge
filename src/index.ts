@@ -18,6 +18,7 @@ import { toolDefinition as sessionDef, claudeSessionSchema, executeClaudeSession
 import { toolDefinition as statusDef, claudeStatusSchema, executeClaudeStatus } from "./tools/claude-status.js";
 import { toolDefinition as abortDef, claudeAbortSchema, executeClaudeAbort } from "./tools/claude-abort.js";
 import { toolDefinition as mcpDef, claudeMcpSchema, executeClaudeMcp } from "./tools/claude-mcp.js";
+import { toolDefinition as context7Def, context7Schema, executeContext7Query } from "./tools/context7-proxy.js";
 
 const server = new Server(
     {
@@ -40,6 +41,7 @@ export const tools = [
     statusDef,
     abortDef,
     mcpDef,
+    context7Def,
 ];
 
 const executors: Record<string, (args: unknown) => Promise<unknown>> = {
@@ -115,6 +117,10 @@ const executors: Record<string, (args: unknown) => Promise<unknown>> = {
     claude_mcp_manage: async (args) => {
         const parsed = claudeMcpSchema.parse(args);
         return formatResult(await executeClaudeMcp(parsed));
+    },
+    context7_query: async (args) => {
+        const parsed = context7Schema.parse(args);
+        return formatResult(await executeContext7Query(parsed));
     },
 };
 

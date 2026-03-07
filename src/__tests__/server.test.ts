@@ -9,7 +9,7 @@ import { formatResult, tools } from "../index.js";
 describe("MCP Server — Tool Definitions", () => {
 
     // Read source once for all tests in this describe block
-    it("exports all 8 tools with correct names", () => {
+    it("exports all 9 tools with correct names", () => {
         const expectedTools = [
             "claude_prompt",
             "claude_agent_teams",
@@ -19,6 +19,7 @@ describe("MCP Server — Tool Definitions", () => {
             "claude_status",
             "claude_abort",
             "claude_mcp_manage",
+            "context7_query",
         ];
 
         const actualNames = tools.map((t) => t.name);
@@ -27,8 +28,8 @@ describe("MCP Server — Tool Definitions", () => {
         }
     });
 
-    it("all 8 tool definitions have description and inputSchema", () => {
-        expect(tools.length).toBe(8);
+    it("all 9 tool definitions have description and inputSchema", () => {
+        expect(tools.length).toBe(9);
 
         for (const tool of tools) {
             expect(tool).toHaveProperty("description");
