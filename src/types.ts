@@ -15,6 +15,13 @@ export interface TeamConfig {
     timeoutMs: number;
 }
 
+export interface TeamStatus {
+    timestamp: number;
+    mode: number;
+    agents: (ProcessStatus & { role: string })[];
+    mailboxPath: string;
+}
+
 export interface ProcessStatus {
     processId: string;
     status: "running" | "exited" | "stuck";
@@ -23,6 +30,7 @@ export interface ProcessStatus {
     lastOutputLine: string;
     mailboxSignals: string[];
     stuckDetection: boolean;
+    teamContext?: TeamStatus;
 }
 
 export interface ToolResult {

@@ -530,17 +530,72 @@ describe("Tool Execution (mocked)", () => {
     // ── executeClaudeStatus ──────────────────────────────────────────────
 
     describe("executeClaudeStatus", () => {
-        it("returns process status with mailbox signals", async () => {
+        beforeEach(() => {
+            // Default mock: readFile throws ENOENT (no team file)
+            const { readFile } = require("fs/promises");
+            vi.mocked(readFile).mockRejectedValue(new Error("ENOENT"));
+        });
+
+        it("4.1 No team file: behaves exactly like before", async () => {
             const result = await executeClaudeStatus({
                 processId: "mock-uuid-1234",
             });
 
             expect(result.success).toBe(true);
             expect(result.data?.processId).toBe("mock-uuid-1234");
-            expect(result.data?.status).toBe("running");
+            expect(result.data).not.toHaveProperty("teamContext");
         });
 
-        it("handles unknown process gracefully", async () => {
+        it("4.2 Valid team file with 4.3 Process matches agent: includes teamContext", async () => {
+            const { readFile } = require("fs/promises");
+            const mockTeamData = {
+                timestamp: 12345,
+                mode: 1,
+                agents: [{ processId: "mock-uuid-1234", role: "frontend" }],
+                mailboxPath: "/test",
+            };
+            vi.mocked(readFile).mockResolvedValue(JSON.stringify(mockTeamData));
+
+            const result = await executeClaudeStatus({
+                processId: "mock-uuid-1234",
+            });
+
+            expect(result.success).toBe(true);
+            expect(result.data?.teamContext).toBeDefined();
+            expect(result.data?.teamContext?.mode).toBe(1);
+        });
+
+        it("4.4 Process doesn't match: no teamContext in response", async () => {
+            const { readFile } = require("fs/promises");
+            const mockTeamData = {
+                timestamp: 12345,
+                mode: 1,
+                agents: [{ processId: "different-uuid", role: "frontend" }],
+                mailboxPath: "/test",
+            };
+            vi.mocked(readFile).mockResolvedValue(JSON.stringify(mockTeamData));
+
+            const result = await executeClaudeStatus({
+                processId: "mock-uuid-1234",
+            });
+
+            expect(result.success).toBe(true);
+            expect(result.data).not.toHaveProperty("teamContext");
+        });
+
+        it("4.5 Corrupted team file: graceful fallback, no crash", async () => {
+            const { readFile } = require("fs/promises");
+            vi.mocked(readFile).mockResolvedValue("invalid json {]");
+
+            const result = await executeClaudeStatus({
+                processId: "mock-uuid-1234",
+            });
+
+            expect(result.success).toBe(true);
+            expect(result.data).not.toHaveProperty("teamContext");
+        });
+
+        it("4.6 existing test: handles unknown process gracefully", async () => {
             mockPM.getStatus.mockImplementation(() => {
                 throw new Error("Process xyz not found");
             });
