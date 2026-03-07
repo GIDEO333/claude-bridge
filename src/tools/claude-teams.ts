@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { mkdir } from "fs/promises";
+import { mkdir, writeFile } from "fs/promises";
+import { homedir } from "os";
+import { join } from "path";
 import { processManager } from "../process-manager.js";
 import { startMonitoring, stopMonitoring, getSignals } from "../file-monitor.js";
 
@@ -21,16 +23,56 @@ export const claudeTeamsSchema = z.object({
     timeoutMs: z.number().positive().default(600000),
 });
 
+const SIGNAL_DIR = join(homedir(), ".claude-bridge");
+const SIGNAL_PATH = join(SIGNAL_DIR, "active-team.json");
+
+/**
+ * Write live agent status to ~/.claude-bridge/active-team.json
+ * so claude-bridge-monitor extension can read it directly.
+ */
+async function writeTeamStatus(
+    processIds: string[],
+    roles: string[],
+    mode: number,
+    mailboxPath: string,
+): Promise<void> {
+    try {
+        const agents = processIds.map((id, i) => {
+            try {
+                const status = processManager.getStatus(id);
+                return { ...status, role: roles[i] };
+            } catch {
+                return {
+                    processId: id,
+                    role: roles[i],
+                    status: "exited" as const,
+                    exitCode: undefined,
+                    uptime: 0,
+                    lastOutputLine: "",
+                    mailboxSignals: [],
+                    stuckDetection: false,
+                };
+            }
+        });
+
+        await writeFile(SIGNAL_PATH, JSON.stringify({
+            timestamp: Date.now(),
+            mode,
+            agents,
+            mailboxPath,
+        }, null, 2));
+    } catch {
+        // Non-critical write failure
+    }
+}
+
 export async function executeClaudeTeams(args: z.infer<typeof claudeTeamsSchema>) {
     const claudePath = process.env.CLAUDE_CLI_PATH || "claude";
     const processIds: string[] = [];
 
-    // Ensure mailbox directory exists
-    try {
-        await mkdir(args.mailboxPath, { recursive: true });
-    } catch {
-        // Directory may already exist
-    }
+    // Ensure directories exist
+    try { await mkdir(args.mailboxPath, { recursive: true }); } catch { /* */ }
+    try { await mkdir(SIGNAL_DIR, { recursive: true }); } catch { /* */ }
 
     // Build environment variables
     const teamEnv: NodeJS.ProcessEnv = {
@@ -38,8 +80,8 @@ export async function executeClaudeTeams(args: z.infer<typeof claudeTeamsSchema>
     };
 
     // Spawn each agent
+    const roles: string[] = [];
     for (const agent of args.agents) {
-        // Build the ownership constraint prompt
         const ownershipInfo = [
             `You are ${agent.role}.`,
             `You OWN these paths (only write here): ${agent.owns.join(", ")}.`,
@@ -51,23 +93,39 @@ export async function executeClaudeTeams(args: z.infer<typeof claudeTeamsSchema>
         ].join(" ");
 
         const fullPrompt = `${ownershipInfo}\n\nTASK:\n${agent.spawnPrompt}`;
-
-        const cmdArgs = [
-            "--dangerously-skip-permissions",
-            "-p",
-            fullPrompt,
-        ];
+        const cmdArgs = ["--dangerously-skip-permissions", "-p", fullPrompt];
 
         const processId = processManager.spawn(
-            claudePath,
-            cmdArgs,
-            process.cwd(),
-            teamEnv,
-            args.timeoutMs
+            claudePath, cmdArgs, process.cwd(), teamEnv, args.timeoutMs
         );
 
         processIds.push(processId);
+        roles.push(agent.role);
     }
+
+    // Write initial status immediately
+    await writeTeamStatus(processIds, roles, args.mode, args.mailboxPath);
+
+    // Start continuous status writer (every 1 second)
+    const statusInterval = setInterval(() => {
+        void writeTeamStatus(processIds, roles, args.mode, args.mailboxPath);
+    }, 1000);
+
+    // Stop writing when all agents have exited
+    const checkDone = setInterval(() => {
+        const allExited = processIds.every((id) => {
+            try {
+                const s = processManager.getStatus(id);
+                return s.status === "exited";
+            } catch { return true; }
+        });
+        if (allExited) {
+            // Write final status then stop
+            void writeTeamStatus(processIds, roles, args.mode, args.mailboxPath);
+            clearInterval(statusInterval);
+            clearInterval(checkDone);
+        }
+    }, 2000);
 
     // Start file monitoring on mailbox
     let monitoringActive = false;
@@ -85,7 +143,6 @@ export async function executeClaudeTeams(args: z.infer<typeof claudeTeamsSchema>
             },
             onAllDone: (doneFiles) => {
                 console.error(`[claude-teams] ALL agents completed! Files: ${doneFiles.join(", ")}`);
-                // Auto-stop monitoring when all agents are done
                 stopMonitoring().catch(() => { });
             },
         });
