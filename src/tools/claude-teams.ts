@@ -14,6 +14,10 @@ export const toolDefinition = {
             claudeMdPath: { type: "string", description: "Path to CLAUDE.md file" },
             mailboxPath: { type: "string", description: "Path to .agent-teams/mailbox/ directory" },
             timeoutMs: { type: "number", description: "Timeout in milliseconds (default: 600000)" },
+            contractFirst: {
+                type: "boolean",
+                description: "If true, enables Contract-First Protocol: the first agent writes an API contract to the mailbox before other agents begin coding. Prevents import/export mismatches. Default: false.",
+            },
         },
         required: ["mode", "agents", "claudeMdPath", "mailboxPath"],
     },
@@ -41,6 +45,7 @@ export const claudeTeamsSchema = z.object({
     claudeMdPath: z.string(),
     mailboxPath: z.string(),
     timeoutMs: z.number().positive().default(600000),
+    contractFirst: z.boolean().optional().default(false),
 });
 
 const SIGNAL_DIR = join(homedir(), ".claude-bridge");
@@ -101,18 +106,53 @@ export async function executeClaudeTeams(args: z.infer<typeof claudeTeamsSchema>
 
     // Spawn each agent
     const roles: string[] = [];
-    for (const agent of args.agents) {
-        const ownershipInfo = [
-            `You are ${agent.role}.`,
-            `You OWN these paths (only write here): ${agent.owns.join(", ")}.`,
-            `FORBIDDEN from writing to: ${agent.forbidden.join(", ")}.`,
-            `Before coding, read .agent-teams/mailbox/ for messages.`,
-            `When done, write completion signal to .agent-teams/mailbox/${agent.role}-DONE.md.`,
-            `If stuck 3x on same error, write .agent-teams/mailbox/ESCALATION.md and STOP.`,
-            `Follow all constraints in CLAUDE.md.`,
-        ].join(" ");
+    const isContractFirst = args.contractFirst;
+    const allRoles = args.agents.map((a) => a.role);
 
-        const fullPrompt = `${ownershipInfo}\n\nTASK:\n${agent.spawnPrompt}`;
+    for (let i = 0; i < args.agents.length; i++) {
+        const agent = args.agents[i];
+        const isFirstAgent = i === 0;
+
+        // Contract-First Protocol instructions
+        const contractProtocol = isContractFirst ? [
+            isFirstAgent
+                ? `CONTRACT PHASE: Before writing any code, you MUST first create the file ${args.mailboxPath}/${agent.role}-CONTRACT.md.`
+                  + ` In this file, list every function you will export with: name, parameters (with types), return type, and a one-line description.`
+                  + ` Example format: '- addTask(task: {title: string, description?: string}): Task — Adds a new task, returns the created task with generated id (string).'`
+                  + ` After writing the contract, proceed with implementation.`
+                : `CONTRACT PHASE: Before writing any code, you MUST read ALL *-CONTRACT.md files in ${args.mailboxPath}/.`
+                  + ` These files define the exact API contracts written by other agents.`
+                  + ` Respect them EXACTLY — use the same function names, parameter types, and return types.`
+                  + ` If there is no contract file yet, write ${args.mailboxPath}/ESCALATION.md saying 'Waiting for contract' and STOP.`,
+        ].join(" ") : "";
+
+        const ownershipInfo = [
+            `=== AGENT IDENTITY ===`,
+            `You are the ${agent.role} agent in a multi-agent team.`,
+            `Team members: ${allRoles.join(", ")}.`,
+            ``,
+            `=== FILE OWNERSHIP ===`,
+            `You OWN these paths (only write to these): ${agent.owns.join(", ")}.`,
+            `FORBIDDEN from writing to: ${agent.forbidden.length > 0 ? agent.forbidden.join(", ") : "none"}.`,
+            ``,
+            contractProtocol ? `=== CONTRACT PROTOCOL ===\n${contractProtocol}\n` : "",
+            `=== MAILBOX COMMUNICATION ===`,
+            `Mailbox directory: ${args.mailboxPath}`,
+            `Read ALL files in mailbox before starting work — other agents may have left contracts or messages.`,
+            `To send a message to another agent, write a file: ${args.mailboxPath}/${agent.role}-to-{RECIPIENT_ROLE}.md`,
+            `  Example: ${args.mailboxPath}/${agent.role}-to-${allRoles.find((r) => r !== agent.role) ?? "other"}.md`,
+            `  Use this for: reporting what you exported, asking for clarification, signaling readiness.`,
+            ``,
+            `=== COMPLETION SIGNALS ===`,
+            `When done: write ${args.mailboxPath}/${agent.role}-DONE.md with a summary of what you built.`,
+            `If stuck 3x on same error: write ${args.mailboxPath}/ESCALATION.md describing the issue, then STOP.`,
+            ``,
+            `=== PROJECT CONTEXT ===`,
+            `Follow all constraints in CLAUDE.md at ${args.claudeMdPath}.`,
+            `If .docs/ directory exists in the project, read relevant files there for library API reference.`,
+        ].filter(Boolean).join("\n");
+
+        const fullPrompt = `${ownershipInfo}\n\n=== YOUR TASK ===\n${agent.spawnPrompt}`;
         const cmdArgs = ["--dangerously-skip-permissions", "-p", fullPrompt];
 
         const processId = processManager.spawn(
@@ -121,6 +161,11 @@ export async function executeClaudeTeams(args: z.infer<typeof claudeTeamsSchema>
 
         processIds.push(processId);
         roles.push(agent.role);
+
+        // Contract-First: non-first agents wait 15s to give contract writers a head start
+        if (isContractFirst && !isFirstAgent && i < args.agents.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 15000));
+        }
     }
 
     // Write initial status immediately

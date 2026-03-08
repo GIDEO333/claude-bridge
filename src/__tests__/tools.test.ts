@@ -530,9 +530,9 @@ describe("Tool Execution (mocked)", () => {
     // ── executeClaudeStatus ──────────────────────────────────────────────
 
     describe("executeClaudeStatus", () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             // Default mock: readFile throws ENOENT (no team file)
-            const { readFile } = require("fs/promises");
+            const { readFile } = await import("fs/promises");
             vi.mocked(readFile).mockRejectedValue(new Error("ENOENT"));
         });
 
@@ -547,7 +547,7 @@ describe("Tool Execution (mocked)", () => {
         });
 
         it("4.2 Valid team file with 4.3 Process matches agent: includes teamContext", async () => {
-            const { readFile } = require("fs/promises");
+            const { readFile } = await import("fs/promises");
             const mockTeamData = {
                 timestamp: 12345,
                 mode: 1,
@@ -566,7 +566,7 @@ describe("Tool Execution (mocked)", () => {
         });
 
         it("4.4 Process doesn't match: no teamContext in response", async () => {
-            const { readFile } = require("fs/promises");
+            const { readFile } = await import("fs/promises");
             const mockTeamData = {
                 timestamp: 12345,
                 mode: 1,
@@ -584,7 +584,7 @@ describe("Tool Execution (mocked)", () => {
         });
 
         it("4.5 Corrupted team file: graceful fallback, no crash", async () => {
-            const { readFile } = require("fs/promises");
+            const { readFile } = await import("fs/promises");
             vi.mocked(readFile).mockResolvedValue("invalid json {]");
 
             const result = await executeClaudeStatus({
@@ -636,6 +636,7 @@ describe("Tool Execution (mocked)", () => {
                 claudeMdPath: "/project/CLAUDE.md",
                 mailboxPath: "/tmp/test-mailbox",
                 timeoutMs: 60000,
+                contractFirst: false,
             });
 
             expect(result.success).toBe(true);
@@ -660,6 +661,7 @@ describe("Tool Execution (mocked)", () => {
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mailbox",
                 timeoutMs: 60000,
+                contractFirst: false,
             });
 
             const spawnArgs = mockPM.spawn.mock.calls[0][1];
@@ -680,6 +682,7 @@ describe("Tool Execution (mocked)", () => {
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mailbox",
                 timeoutMs: 60000,
+                contractFirst: false,
             });
 
             const env = mockPM.spawn.mock.calls[0][3];
@@ -703,6 +706,7 @@ describe("Tool Execution (mocked)", () => {
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mailbox",
                 timeoutMs: 60000,
+                contractFirst: false,
             });
 
             expect(result.output).toContain("Reflection");
@@ -722,11 +726,12 @@ describe("Tool Execution (mocked)", () => {
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mailbox",
                 timeoutMs: 60000,
+                contractFirst: false,
             });
 
             const spawnArgs = mockPM.spawn.mock.calls[0][1];
             const prompt = spawnArgs[2]; // --dangerously-skip-permissions -p <prompt>
-            expect(prompt).toContain("You are frontend");
+            expect(prompt).toContain("You are the frontend agent");
             expect(prompt).toContain("src/ui");
             expect(prompt).toContain("FORBIDDEN");
             expect(prompt).toContain("src/api");
@@ -750,6 +755,7 @@ describe("Tool Execution (mocked)", () => {
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/test-mailbox-dir",
                 timeoutMs: 60000,
+                contractFirst: false,
             });
 
             expect(mockMkdir).toHaveBeenCalledWith(
@@ -781,6 +787,7 @@ describe("Tool Execution (mocked)", () => {
                 claudeMdPath: "/CLAUDE.md",
                 mailboxPath: "/tmp/mb",
                 timeoutMs: 60000,
+                contractFirst: false,
             });
 
             expect(mockStartMon).toHaveBeenCalledOnce();

@@ -8,6 +8,7 @@ import {
 import { processManager } from "./process-manager.js";
 import { stopMonitoring } from "./file-monitor.js";
 import { startupVersionCheck } from "./cli-version.js";
+import { startAbortWatcher, stopAbortWatcher } from "./abort-watcher.js";
 
 // Tool imports
 import { toolDefinition as promptDef, claudePromptSchema, executeClaudePrompt } from "./tools/claude-prompt.js";
@@ -166,12 +167,14 @@ export function formatResult(result: { success: boolean; output: string; error?:
 
 async function cleanup() {
     await stopMonitoring();
+    stopAbortWatcher();
     processManager.cleanup();
 }
 
 async function main() {
     // Non-blocking CLI version compatibility check
     startupVersionCheck();
+    startAbortWatcher();
 
     const transport = new StdioServerTransport();
     await server.connect(transport);
