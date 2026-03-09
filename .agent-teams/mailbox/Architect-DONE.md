@@ -1,0 +1,3 @@
+# Architect Report: claude-bridge Structure
+
+Claude-bridge is a TypeScript MCP server built with `@modelcontextprotocol/sdk` that exposes 9 tools via stdio for managing Claude Code agent teams and sessions. The architecture follows a modular design where `index.ts` acts as the MCP server orchestrator that registers tools and delegates execution to individual tool implementations in the `src/tools/` directory. Supporting modules include `process-manager.ts` for spawning/managing child processes, `file-monitor.ts` for tracking output files, `cli-version.ts` for compatibility checking, `config.ts` for configuration, and shared `types.ts` defining the core data structures for team configurations, process status, and tool results.
